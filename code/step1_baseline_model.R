@@ -1,0 +1,83 @@
+##################################################################################################
+######################################### BASELINE MODEL #########################################
+##################################################################################################
+
+##################################################################################################
+# Prepare Dataset
+##################################################################################################
+DATA0 = make_data() # Original Dataset
+data0 = DATA0
+
+# Full dataset used in computation
+data = generate_dummies()
+data$BMI = data$Weight/(data$Height/100)^2
+
+# Generate summary of data
+na_matrix = matrix(0,nrow = 12, ncol = 7)
+colnames(na_matrix) = colnames(DATA0$DN02)[1:7]
+
+mean_matrix = matrix(0,nrow = 12,ncol = 8)
+colnames(mean_matrix) = colnames(data)[c(1:5,7,10,11)]
+
+obs_matrix = matrix(0,nrow = 12,ncol = 1)
+colnames(obs_matrix) = c("no_of_obs")
+summary_data()
+
+
+# Generate NA.omit data set
+data_naomit = na.omit(data)
+# Add Team Dummies
+Team_dummies = dummy_cols(data_naomit$Team)[,-1]
+colnames(Team_dummies) = c("Team10","Team11","Team12",paste0("Team",seq(2,9,1)))
+data_naomit = cbind.data.frame(data_naomit,Team_dummies[,c(1:2,4:11)])
+head(data_naomit)
+
+##################################################################################################
+# Complete Case Analysis 
+##################################################################################################
+
+##################################################################################################
+# Exploring Heterogeneity
+##################################################################################################
+
+# Generate forest plot in 12 studies
+plot_forest(2)
+plot_forest(3)
+plot_forest(4)
+plot_forest(5)
+plot_forest(7)
+plot_forest(9)
+plot_forest(10)
+plot_forest(11)
+
+##################################################################################################
+# Check representativeness
+##################################################################################################
+p_matrix = check_representativeness()
+length(which(p_matrix < 0.05 || p_matrix > 0.95)) == 0
+# Therefore, no evidence to reject the random assignment assumption
+
+##################################################################################################
+# baseline model, stepwise selection according to AIC, smaller the better
+##################################################################################################
+fullmod = glm(is_screen ~ Age + Alcohol + Height + Weight + Deps + Full + Part + Team2 + Team3
+              + Team4 + Team5 + Team6 + Team7 + Team8 + Team9 + Team10 + Team11 + Full:Deps + Part:Deps + BMI,
+              data = data_naomit, family = binomial) # Including team fixed effect + Interaction variables
+nothing = glm(is_screen ~ 1, data = data_naomit,
+              family = binomial)
+bothways = step(nothing, list(lower=formula(nothing),upper=formula(fullmod)),
+                direction="both",trace=0)
+formula(bothways)
+bothways$aic
+out = capture.output(summary(bothways))
+write.table(out,"output/baseline_model.txt")
+##################################################################################################
+# Model Selection
+##################################################################################################
+model1 = bothways #7 variables is_screen ~ Deps + Part + Full + Age + Team2 + Deps:Part + Deps:Full
+predictions = ifelse(model1$fitted.values>0.5,"Y","N")
+predictions = as.factor(predictions)
+screening = data_naomit$screening
+screening = as.factor(screening)
+out = capture.output(confusionMatrix(predictions, screening, positive = "Y", dnn = c("Prediction", "True")))
+write.table(out,"output/baseline_confusion_matrix.txt")

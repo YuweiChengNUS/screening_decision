@@ -1,0 +1,59 @@
+# import library
+# install.packages("BaylorEdPsych")
+# install.packages("mvnmle")
+# install.packages("forestplot")
+# install.packages("lmtest")
+# install.packages("caret")
+# install.packages("ROCit")
+
+set.seed(1)
+library(readxl)
+library(fastDummies)
+library(lmtest)
+library(forestplot)
+library(caret)
+library(e1071)
+library(gbm)
+library(MASS)
+library(ROCit)
+library(Amelia)
+
+source("code/supporting_functions.R")
+source("code/step1_baseline_model.R")
+source("code/plot_logistic.R")
+source("code/step2_machine_learning_models.R")
+
+pdf("plot/age.pdf")
+plot(boostmodel4,i="Age")
+dev.off()
+
+pdf("plot/alcohol.pdf")
+plot(boostmodel4,i="Alcohol")
+dev.off()
+
+pdf("plot/BMI.pdf")
+plot(boostmodel4,i="BMI")
+dev.off()
+
+pdf("plot/Deps.pdf")
+plot(boostmodel4,i="Deps")
+dev.off()
+
+pdf("plot/Full.pdf")
+plot(boostmodel4,i="Full")
+dev.off()
+
+pdf("plot/Part.pdf")
+plot(boostmodel4,i="Part")
+dev.off()
+
+pdf("plot/Height.pdf")
+plot(boostmodel4,i="Height")
+dev.off()
+
+pdf("plot/Weight.pdf")
+plot(boostmodel4,i="Weight")
+dev.off()
+
+source("code/step0_create_python_dataset.R")
+source("code/step3_imputation_model.R")

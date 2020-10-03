@@ -1,0 +1,98 @@
+compute_logit = function(f,p,team2)
+{
+  age_sim = seq(20,100,1)
+  logit = coef(model1)["Part"]*p + coef(model1)["Full"]*f + coef(model1)["Age"]*age_sim + coef(model1)["Team2"]*team2
+  return(logit)
+}
+
+plot_graph = function(ES,team2)
+{
+  age_sim = seq(20,100,1)
+  # Deps = 0
+  if(ES == 1) # Full time
+  {
+    a = 1;b=0;logit_sim = compute_logit(a,b,team2);p_sim = 1/(1+exp(-logit_sim))
+    plot(age_sim,p_sim,type = "l",ylim = c(0,1),col = "#721b65",
+         ylab = "Probability", xlab = "Age (Year)",lwd = 2,las = 1, main = "Full-time",
+         cex.main = 0.8, cex.lab = 0.8)
+  }else if(ES==2) # Part time
+  {
+    a = 0;b=1;logit_sim = compute_logit(a,b,0);p_sim = 1/(1+exp(-logit_sim))
+    plot(age_sim,p_sim,type = "l",ylim = c(0,1),col = "#721b65",
+         ylab = "Probability", xlab = "Age (Year)",lwd = 2,las = 1, main = "Part-time",
+         cex.main = 0.8, cex.lab = 0.8)
+  }else # Retired
+  {
+    a = 0;b=0;logit_sim = compute_logit(a,b,0);p_sim = 1/(1+exp(-logit_sim))
+    plot(age_sim,p_sim,type = "l",ylim = c(0,1),col = "#721b65",
+         ylab = "Probability", xlab = "Age (Year)",lwd = 2,las = 1, main = "Retired/Unemployed",
+         cex.main = 0.8, cex.lab = 0.8)
+  }
+  
+  # Deps = 1
+  logit_sim = compute_logit(a,b,0) + coef(model1)["Deps"]*1 + coef(model1)["Deps:Part"]*b*1 + coef(model1)["Deps:Full"]*a*1
+  p_sim = 1/(1+exp(-logit_sim));lines(age_sim, p_sim,col = "#b80d57",lwd = 2)
+  
+  if(ES == 2)
+  {
+    # Deps = 2
+    logit_sim = compute_logit(a,b,0) + coef(model1)["Deps"]*2 + coef(model1)["Deps:Part"]*b*2 + coef(model1)["Deps:Full"]*a*2
+    p_sim = 1/(1+exp(-logit_sim));lines(age_sim, p_sim*0.99,col = "#f8615a",lwd = 2)
+    
+    # Deps = 3
+    logit_sim = compute_logit(a,b,0) + coef(model1)["Deps"]*3 + coef(model1)["Deps:Part"]*b*3 + coef(model1)["Deps:Full"]*a*3
+    p_sim = 1/(1+exp(-logit_sim));lines(age_sim, p_sim*0.98,col = "#ffd868",lwd = 2)
+  }else
+  {
+    # Deps = 2
+    logit_sim = compute_logit(a,b,0) + coef(model1)["Deps"]*2 + coef(model1)["Deps:Part"]*b*2 + coef(model1)["Deps:Full"]*a*2
+    p_sim = 1/(1+exp(-logit_sim));lines(age_sim, p_sim,col = "#f8615a",lwd = 2)
+    
+    # Deps = 3
+    logit_sim = compute_logit(a,b,0) + coef(model1)["Deps"]*3 + coef(model1)["Deps:Part"]*b*3 + coef(model1)["Deps:Full"]*a*3
+    p_sim = 1/(1+exp(-logit_sim));lines(age_sim, p_sim,col = "#ffd868",lwd = 2)
+  }
+ 
+  # When p = 0.5
+  abline(a = 0.5,b = 0,lty = 2)
+  # Create Legend
+  if(ES==1)
+  {
+    legend("topleft", legend=c("Deps = 0", "Deps = 1","Deps = 2","Deps = 3"),
+           col=c("#721b65", "#b80d57","#f8615a","#ffd868"), lty=rep(1,4), cex=0.6)  
+  }else{legend(x = 85,y = 0.5, legend=c("Deps = 0", "Deps = 1","Deps = 2","Deps = 3"),
+               col=c("#721b65", "#b80d57","#f8615a","#ffd868"), lty=rep(1,4), cex=0.6)}
+}
+
+# # Generate Plot
+# pdf("plot/baseline_probs.pdf",height = 3.9375,width = 7)
+# par(mfrow = c(1,3),mar = c(4,4,2,1))
+# plot_graph(1,0)
+# plot_graph(2,0)
+# plot_graph(3,0)
+# par(mfrow = c(1,1))
+# dev.off()
+
+# pdf("plot/baseline_probs1.pdf",height = 3.9375,width = 7)
+# par(mfrow = c(1,3),mar = c(4,4,2,1))
+# plot_graph(1,1)
+# plot_graph(2,1)
+# plot_graph(3,1)
+# par(mfrow = c(1,1))
+# dev.off()
+
+for(i in 1:3)
+{
+  filename = paste0("plot/probs0",i,".pdf")
+  pdf(filename,height = 1.9685*2,width = 1.9685*2,pointsize = 12)
+  par(mar = c(4,4,2,1))
+  plot_graph(i,0)
+  dev.off()
+  
+  filename = paste0("plot/probs1",i,".pdf")
+  pdf(filename,height = 1.9685*2,width = 1.9685*2,pointsize = 12)
+  par(mar = c(4,4,2,1))
+  plot_graph(i,1)
+  dev.off()
+  
+}

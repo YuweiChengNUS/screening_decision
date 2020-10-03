@@ -1,0 +1,97 @@
+##################################################################################################
+######################################### IMPUTATION MODEL #######################################
+##################################################################################################
+imputed_data = list()
+rounds = 10
+for(i in 1:rounds)
+{
+  imputed_data[[i]] = make_imputed_data()
+}
+name_list = paste0("imputed_data",seq(1,rounds,1))
+names(imputed_data) = name_list
+
+# Check the format of dataset
+head(imputed_data[[1]])
+all(is.na(imputed_data[[1]])==FALSE) # True is expected
+
+# Check imputed data1 and data2 are different
+all(imputed_data[[1]]$ES == imputed_data[[2]]$ES) # False is expected
+
+model_list = list()
+for(i in 1:rounds)
+{
+  fullmod = glm(is_screen ~ Age + Alcohol + Height + Weight + Deps + Full + Part + Team2 + Team3
+                + Team4 + Team5 + Team6 + Team7 + Team8 + Team9 + Team10 + Team11 + Full:Deps + Part:Deps + BMI,
+                data = imputed_data[[i]], family = binomial) 
+  nothing = glm(is_screen ~ 1, data = imputed_data[[i]],
+                family = binomial)
+  bothways = step(nothing, list(lower=formula(nothing),upper=formula(fullmod)),
+                         direction="both",trace=0)
+  model_list[[i]] = bothways 
+}
+name_list = paste0("model",seq(1,rounds,1))
+names(model_list) = name_list
+
+for(i in 1:rounds)
+{
+  print(formula(model_list[[i]]))
+}
+
+# According to the output, I decide to fit two models
+
+# Model 1: is_screen ~ Deps + Full + Part + Age + Team10 + Team3 + Deps:Part + Deps:Full
+# Model 2: is_screen ~ Deps + Part + Full + Weight + Team10 + Team3 + Deps:Part + Deps:Full
+
+model1_list = list()
+model2_list = list()
+for(i in 1:rounds)
+{
+  model1 = glm(is_screen ~ Deps + Full + Part + Age + Team10 + Team3 + Deps:Part + Deps:Full,
+               data = imputed_data[[i]], family = binomial)
+  model2 = glm(is_screen ~ Deps + Part + Full + Weight + Team10 + Team3 + Deps:Part + Deps:Full,
+               data = imputed_data[[i]], family = binomial) 
+  model1_list[[i]] = model1
+  model2_list[[i]] = model2
+}
+
+# Model 1
+coefs1 = matrix(0,nrow = rounds, ncol = 9)
+sds1 = matrix(0,nrow = rounds, ncol = 9)
+colnames(coefs1) = names(model1_list[[1]]$coefficients)
+colnames(sds1) = names(model1_list[[1]]$coefficients)
+
+# Model 2
+coefs2 = matrix(0,nrow = rounds, ncol = 9)
+sds2 = matrix(0,nrow = rounds, ncol = 9)
+colnames(coefs2) = names(model2_list[[1]]$coefficients)
+colnames(sds2) = names(model2_list[[1]]$coefficients)
+
+for(i in 1:rounds){
+  # Model 1
+  coefs1[i,] = as.numeric(model1_list[[i]]$coefficients)
+  sds1[i,] = as.numeric(sqrt(diag(vcov(model1_list[[i]]))))
+  
+  # Model 2
+  coefs2[i,] = as.numeric(model2_list[[i]]$coefficients)
+  sds2[i,] = as.numeric(sqrt(diag(vcov(model2_list[[i]]))))
+}
+
+# Model 1
+rubin1 = mi.meld(coefs1,sds1)
+cril1 = rubin1$q.mi-rubin1$se.mi*1.96
+criu1 = rubin1$q.mi+rubin1$se.mi*1.96
+
+# Model 2
+rubin2 = mi.meld(coefs2,sds2)
+cril2 = rubin2$q.mi-rubin2$se.mi*1.96
+criu2 = rubin2$q.mi+rubin2$se.mi*1.96
+
+# Model 1
+basic_result1 = round(rbind(cril1,rubin1$q.mi,criu1),2)
+row.names(basic_result1) = c("cril","mean","criu")
+write.csv(basic_result1,"output/imputed_model1.csv")
+
+# Model 2
+basic_result2 = round(rbind(cril2,rubin2$q.mi,criu2),2)
+row.names(basic_result2) = c("cril","mean","criu")
+write.csv(basic_result2,"output/imputed_model2.csv")
